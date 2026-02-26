@@ -72,7 +72,21 @@ async def chat_with_agent(request: ChatRequest):
     inputs = {"messages": [("user", request.message)]}
     result = agent_executor.invoke(inputs)
     
-    # Grab the final text response from the AI
-    final_reply = result["messages"][-1].content
+    # Grab the final response object from the AI
+    ai_message = result["messages"][-1]
+    
+    # --- THE FIX FOR REACT ERROR #31 ---
+    # Safely extract text whether LangChain returns a list of blocks or a plain string
+    if isinstance(ai_message.content, list):
+        text_blocks = []
+        for item in ai_message.content:
+            if isinstance(item, dict) and "text" in item:
+                text_blocks.append(item["text"])
+            elif isinstance(item, str):
+                text_blocks.append(item)
+        final_reply = "\n".join(text_blocks)
+    else:
+        # It's already a normal string, just ensure it's cast properly
+        final_reply = str(ai_message.content)
     
     return {"reply": final_reply}
